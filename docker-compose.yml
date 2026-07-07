@@ -1,0 +1,57 @@
+version: '3.8'
+
+networks:
+  rag-eval:
+
+services:
+  lightrag:
+    build:
+      context: ./LightRAG_Prototype
+    container_name: lightrag
+    ports:
+      - "9621:9621"
+    volumes:
+      - ${FILESTORE_PATH:-./LightRAG_Prototype/data/rag_storage}:/app/data/rag_storage:ro   # pre-processed knowledge graph
+      - ./LightRAG_Prototype/.env:/app/.env:ro
+    env_file:
+      - ./LightRAG_Prototype/.env
+    environment:
+      - WORKING_DIR=/app/data/rag_storage
+    networks:
+      - rag-eval
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9621/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  evaluator:
+    build:
+      context: ./nitibench
+    container_name: evaluator
+    depends_on:
+      lightrag:
+        condition: service_healthy
+    volumes:
+      - ${RESULT_PATH:-./results}:/app/results
+      - ./lightrag_response.py:/app/lightrag_response.py
+      - ./nitibench/config:/app/LRG/config
+    environment:
+      - LIGHTRAG_URL=http://lightrag:9621
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+    networks:
+      - rag-eval
+    command: >
+      bash -c "
+        echo '=== Step 1: Generating responses from LightRAG ===' &&
+        python /app/lightrag_response.py
+          --dataset /app/test_data/hf_tax.csv
+          --output /app/results/tax_response.json
+          --url http://lightrag:9621
+          --mode ${LIGHTRAG_MODE:-hybrid}
+          --concurrency ${LIGHTRAG_CONCURRENCY:-3} &&
+        echo '=== Step 2: Running metric evaluation ===' &&
+        python /app/LRG/script/metric_e2e.py
+          --config_path /app/LRG/config/all_e2e_metric_config/lightrag_tax_metric.yaml
+      "

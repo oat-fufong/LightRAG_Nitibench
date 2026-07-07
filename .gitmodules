@@ -1,0 +1,6 @@
+[submodule "nitibench"]
+	path = nitibench
+	url = https://github.com/oat-fufong/jenkins-nitibench.git
+[submodule "LightRAG_Prototype"]
+	path = LightRAG_Prototype
+	url = https://github.com/oat-fufong/LightRAG_Prototype.git
