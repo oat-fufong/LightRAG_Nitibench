@@ -35,6 +35,12 @@ pipeline {
     }
 
     stages {
+        stage('Init Submodules') {
+            steps {
+                sh 'git submodule update --init --recursive'
+            }
+        }
+
         stage('Cleanup') {
             steps {
                 sh 'docker compose down --remove-orphans || true'
