@@ -42,11 +42,16 @@ async def main(args):
     )
     print(f"Using question column: '{q_col}' — {len(df)} questions")
 
-    if args.limit and args.limit > 0:
-        df = df.head(args.limit)
-        print(f"Limiting to first {args.limit} questions")
-
     df["idx"] = [f"{i:04d}" for i in range(len(df))]
+
+    if args.limit and args.limit > 0:
+        df_query = df.head(args.limit)
+        df_skip = df.iloc[args.limit:]
+        print(f"Limiting queries to first {args.limit} / {len(df)} questions")
+    else:
+        df_query = df
+        df_skip = df.iloc[0:0]
+
     sem = asyncio.Semaphore(args.concurrency)
 
     async with httpx.AsyncClient(base_url=args.url, timeout=120.0) as client:
@@ -83,8 +88,15 @@ async def main(args):
                     "tries": 1,
                 }
 
-        tasks = [run_one(row["idx"], row[q_col]) for _, row in df.iterrows()]
+        tasks = [run_one(row["idx"], row[q_col]) for _, row in df_query.iterrows()]
         results = await atqdm.gather(*tasks, desc="Querying LightRAG")
+
+    # Pad skipped rows with empty answers so metric_e2e gets a full-length file
+    skipped = [
+        {"idx": row["idx"], "content": {"answer": "", "citations": []}, "retrieved_ids": [], "usage": {"skipped": True}, "tries": 0}
+        for _, row in df_skip.iterrows()
+    ]
+    results = list(results) + skipped
 
     results.sort(key=lambda x: x["idx"])
 
