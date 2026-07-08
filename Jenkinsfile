@@ -156,7 +156,7 @@ pipeline {
         stage('Start LightRAG') {
             steps {
                 sh '''
-                    docker compose up -d --wait --wait-timeout 120 lightrag
+                    docker compose up -d --wait --wait-timeout 180 lightrag
                     echo "LightRAG is healthy"
                     docker compose ps lightrag
                 '''
