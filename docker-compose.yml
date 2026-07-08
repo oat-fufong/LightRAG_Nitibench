@@ -50,6 +50,7 @@ services:
     environment:
       - LIGHTRAG_URL=http://lightrag:9621
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-unused}   # required by gemini module import; not used when judge is OpenRouter
     networks:
       - rag-eval
     command: >
