@@ -2,6 +2,7 @@ pipeline {
     agent { label 'gpu-agent-5' }
 
     parameters {
+        // --- Infrastructure ---
         string(
             name: 'FILESTORE_PATH',
             defaultValue: '/mnt/filestore/lightrag/rag_storage',
@@ -12,6 +13,40 @@ pipeline {
             defaultValue: '/mnt/filestore/lightrag/results',
             description: 'Path to write tax_response.json and evaluation results'
         )
+
+        // --- LightRAG server ---
+        string(
+            name: 'LLM_MODEL',
+            defaultValue: 'deepseek/deepseek-v4-flash',
+            description: 'LLM model for LightRAG (OpenRouter format: provider/model)'
+        )
+        string(
+            name: 'EMBEDDING_MODEL',
+            defaultValue: 'openai/text-embedding-3-small',
+            description: 'Embedding model for LightRAG (OpenRouter format: provider/model)'
+        )
+        string(
+            name: 'EMBEDDING_DIM',
+            defaultValue: '1536',
+            description: 'Embedding dimension matching the embedding model'
+        )
+        string(
+            name: 'LLM_MAX_TOKENS',
+            defaultValue: '8000',
+            description: 'Max output tokens for LightRAG LLM responses'
+        )
+        string(
+            name: 'TOP_K',
+            defaultValue: '40',
+            description: 'Number of entities/relations retrieved from knowledge graph per query'
+        )
+        string(
+            name: 'MAX_ASYNC',
+            defaultValue: '4',
+            description: 'Max concurrent LLM requests inside LightRAG server'
+        )
+
+        // --- Query ---
         choice(
             name: 'LIGHTRAG_MODE',
             choices: ['hybrid', 'local', 'global', 'naive', 'mix'],
@@ -22,16 +57,50 @@ pipeline {
             defaultValue: '3',
             description: 'Number of parallel queries to LightRAG'
         )
+
+        // --- Evaluation judge ---
+        string(
+            name: 'JUDGE_MODEL',
+            defaultValue: 'openai/gpt-4o-mini',
+            description: 'LLM judge model for coverage/contradiction scoring (OpenRouter format)'
+        )
+        string(
+            name: 'JUDGE_MAX_TOKENS',
+            defaultValue: '2048',
+            description: 'Max tokens for judge model response'
+        )
+        string(
+            name: 'BATCH_SIZE',
+            defaultValue: '50',
+            description: 'Number of questions evaluated concurrently by the judge'
+        )
     }
 
     environment {
         HTTP_PROXY  = 'http://10.0.0.3:3128'
         HTTPS_PROXY = 'http://10.0.0.3:3128'
         NO_PROXY    = 'localhost,127.0.0.1,metadata.google.internal,lightrag'
-        FILESTORE_PATH      = "${params.FILESTORE_PATH}"
-        RESULT_PATH         = "${params.RESULT_PATH}"
-        LIGHTRAG_MODE       = "${params.LIGHTRAG_MODE}"
+
+        // Infrastructure
+        FILESTORE_PATH = "${params.FILESTORE_PATH}"
+        RESULT_PATH    = "${params.RESULT_PATH}"
+
+        // LightRAG server
+        LLM_MODEL       = "${params.LLM_MODEL}"
+        EMBEDDING_MODEL = "${params.EMBEDDING_MODEL}"
+        EMBEDDING_DIM   = "${params.EMBEDDING_DIM}"
+
+        // Query
+        LLM_MAX_TOKENS  = "${params.LLM_MAX_TOKENS}"
+        TOP_K           = "${params.TOP_K}"
+        MAX_ASYNC       = "${params.MAX_ASYNC}"
+        LIGHTRAG_MODE        = "${params.LIGHTRAG_MODE}"
         LIGHTRAG_CONCURRENCY = "${params.LIGHTRAG_CONCURRENCY}"
+
+        // Evaluation
+        JUDGE_MODEL      = "${params.JUDGE_MODEL}"
+        JUDGE_MAX_TOKENS = "${params.JUDGE_MAX_TOKENS}"
+        BATCH_SIZE       = "${params.BATCH_SIZE}"
     }
 
     stages {
@@ -47,6 +116,31 @@ pipeline {
             }
         }
 
+        stage('Generate Metric Config') {
+            steps {
+                sh '''
+                    mkdir -p nitibench/config/all_e2e_metric_config
+                    cat > nitibench/config/all_e2e_metric_config/lightrag_tax_metric.yaml << EOF
+                    chunk_node_path: /app/LRG/chunking/reduced_golden/nodes.json
+                    golden_node_path: /app/LRG/chunking/reduced_golden/nodes.json
+
+                    result_dir: /app/results
+
+                    llm_config:
+                    model: ${JUDGE_MODEL}
+                    base_url: https://openrouter.ai/api/v1
+                    max_tokens: ${JUDGE_MAX_TOKENS}
+                    temperature: 0.3
+                    n: 1
+
+                    eval_retrieval: False
+                    batch_size: ${BATCH_SIZE}
+                    datasets: ["tax"]
+                    EOF
+                '''
+            }
+        }
+
         stage('Build Images') {
             steps {
                 sh 'docker compose build'
@@ -59,10 +153,6 @@ pipeline {
                     string(credentialsId: 'OPENROUTER_API_KEY', variable: 'OPENROUTER_API_KEY')
                 ]) {
                     sh '''
-                        # Inject API key into LightRAG env file
-                        sed -i "s|LLM_BINDING_API_KEY=.*|LLM_BINDING_API_KEY=${OPENROUTER_API_KEY}|" LightRAG_Prototype/.env
-                        sed -i "s|EMBEDDING_BINDING_API_KEY=.*|EMBEDDING_BINDING_API_KEY=${OPENROUTER_API_KEY}|" LightRAG_Prototype/.env
-
                         docker compose up -d lightrag
                         echo "Waiting for LightRAG to be healthy..."
                         docker compose ps lightrag

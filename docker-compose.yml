@@ -15,6 +15,15 @@ services:
       - ./LightRAG_Prototype/.env
     environment:
       - WORKING_DIR=/app/data/rag_storage
+      # LLM
+      - LLM_MODEL=${LLM_MODEL:-deepseek/deepseek-v4-flash}
+      - OPENAI_LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-8000}
+      # Embedding
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-openai/text-embedding-3-small}
+      - EMBEDDING_DIM=${EMBEDDING_DIM:-1536}
+      # Query tuning
+      - TOP_K=${TOP_K:-40}
+      - MAX_ASYNC=${MAX_ASYNC:-4}
     networks:
       - rag-eval
     healthcheck:
