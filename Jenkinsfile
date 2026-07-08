@@ -212,7 +212,7 @@ datasets: ["tax"]
 
     post {
         always {
-            sh 'docker compose down --remove-orphans || true'
+            sh 'docker compose down --rmi local --remove-orphans || true'
         }
         success {
             echo 'Pipeline complete — results written to ${RESULT_PATH}'
