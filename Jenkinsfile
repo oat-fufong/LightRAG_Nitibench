@@ -130,26 +130,29 @@ pipeline {
 
         stage('Generate Metric Config') {
             steps {
-                sh '''
-                    mkdir -p nitibench/config/all_e2e_metric_config
-                    cat > nitibench/config/all_e2e_metric_config/lightrag_tax_metric.yaml << EOF
-                    chunk_node_path: /app/LRG/chunking/reduced_golden/nodes.json
-                    golden_node_path: /app/LRG/chunking/reduced_golden/nodes.json
+                script {
+                    sh 'mkdir -p nitibench/config/all_e2e_metric_config'
+                    writeFile(
+                        file: 'nitibench/config/all_e2e_metric_config/lightrag_tax_metric.yaml',
+                        text: """\
+chunk_node_path: /app/LRG/chunking/reduced_golden/nodes.json
+golden_node_path: /app/LRG/chunking/reduced_golden/nodes.json
 
-                    result_dir: /app/results
+result_dir: /app/results
 
-                    llm_config:
-                      model: ${JUDGE_MODEL}
-                      base_url: https://openrouter.ai/api/v1
-                      max_tokens: ${JUDGE_MAX_TOKENS}
-                      temperature: 0.3
-                      n: 1
+llm_config:
+  model: ${params.JUDGE_MODEL}
+  base_url: https://openrouter.ai/api/v1
+  max_tokens: ${params.JUDGE_MAX_TOKENS}
+  temperature: 0.3
+  n: 1
 
-                    eval_retrieval: False
-                    batch_size: ${BATCH_SIZE}
-                    datasets: ["tax"]
-                    EOF
-                '''
+eval_retrieval: False
+batch_size: ${params.BATCH_SIZE}
+datasets: ["tax"]
+"""
+                    )
+                }
             }
         }
 
