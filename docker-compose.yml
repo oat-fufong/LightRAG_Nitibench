@@ -30,11 +30,11 @@ services:
     networks:
       - rag-eval
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:9621/health || exit 1"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:9621/health')\" || exit 1"]
       interval: 15s
-      timeout: 5s
+      timeout: 10s
       retries: 10
-      start_period: 30s
+      start_period: 60s
 
   evaluator:
     build:
