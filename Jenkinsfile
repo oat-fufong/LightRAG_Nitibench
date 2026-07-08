@@ -57,6 +57,11 @@ pipeline {
             defaultValue: '3',
             description: 'Number of parallel queries to LightRAG'
         )
+        string(
+            name: 'QUESTION_LIMIT',
+            defaultValue: '0',
+            description: 'Cap number of questions to run (0 = all; use 5-10 for quick smoke tests)'
+        )
 
         // --- Evaluation judge ---
         string(
@@ -96,6 +101,7 @@ pipeline {
         MAX_ASYNC       = "${params.MAX_ASYNC}"
         LIGHTRAG_MODE        = "${params.LIGHTRAG_MODE}"
         LIGHTRAG_CONCURRENCY = "${params.LIGHTRAG_CONCURRENCY}"
+        QUESTION_LIMIT       = "${params.QUESTION_LIMIT}"
 
         // Evaluation
         JUDGE_MODEL      = "${params.JUDGE_MODEL}"
@@ -177,7 +183,8 @@ pipeline {
                                 --output /app/results/tax_response.json \
                                 --url http://lightrag:9621 \
                                 --mode ${LIGHTRAG_MODE} \
-                                --concurrency ${LIGHTRAG_CONCURRENCY}
+                                --concurrency ${LIGHTRAG_CONCURRENCY} \
+                                --limit ${QUESTION_LIMIT}
                     '''
                 }
             }

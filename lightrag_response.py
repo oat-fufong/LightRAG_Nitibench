@@ -42,6 +42,10 @@ async def main(args):
     )
     print(f"Using question column: '{q_col}' — {len(df)} questions")
 
+    if args.limit and args.limit > 0:
+        df = df.head(args.limit)
+        print(f"Limiting to first {args.limit} questions")
+
     df["idx"] = [f"{i:04d}" for i in range(len(df))]
     sem = asyncio.Semaphore(args.concurrency)
 
@@ -108,5 +112,6 @@ if __name__ == "__main__":
         choices=["local", "global", "hybrid", "naive", "mix"],
     )
     parser.add_argument("--concurrency", type=int, default=3)
+    parser.add_argument("--limit", type=int, default=0, help="cap number of questions (0 = all)")
     args = parser.parse_args()
     asyncio.run(main(args))
