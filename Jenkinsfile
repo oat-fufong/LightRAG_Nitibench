@@ -139,11 +139,11 @@ pipeline {
                     result_dir: /app/results
 
                     llm_config:
-                    model: ${JUDGE_MODEL}
-                    base_url: https://openrouter.ai/api/v1
-                    max_tokens: ${JUDGE_MAX_TOKENS}
-                    temperature: 0.3
-                    n: 1
+                      model: ${JUDGE_MODEL}
+                      base_url: https://openrouter.ai/api/v1
+                      max_tokens: ${JUDGE_MAX_TOKENS}
+                      temperature: 0.3
+                      n: 1
 
                     eval_retrieval: False
                     batch_size: ${BATCH_SIZE}
