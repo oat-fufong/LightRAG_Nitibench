@@ -15,6 +15,9 @@ services:
       - ./LightRAG_Prototype/.env
     environment:
       - WORKING_DIR=/app/data/rag_storage
+      # API keys — injected from Jenkins credentials via withCredentials
+      - LLM_BINDING_API_KEY=${OPENROUTER_API_KEY}
+      - EMBEDDING_BINDING_API_KEY=${OPENROUTER_API_KEY}
       # LLM
       - LLM_MODEL=${LLM_MODEL:-deepseek/deepseek-v4-flash}
       - OPENAI_LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-8000}

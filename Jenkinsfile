@@ -112,15 +112,7 @@ pipeline {
 
         stage('Prepare Config') {
             steps {
-                withCredentials([
-                    string(credentialsId: 'OPENROUTER_API_KEY', variable: 'OPENROUTER_API_KEY')
-                ]) {
-                    sh '''
-                        cp LightRAG_Prototype/.env.poc LightRAG_Prototype/.env
-                        sed -i "s|LLM_BINDING_API_KEY=.*|LLM_BINDING_API_KEY=${OPENROUTER_API_KEY}|" LightRAG_Prototype/.env
-                        sed -i "s|EMBEDDING_BINDING_API_KEY=.*|EMBEDDING_BINDING_API_KEY=${OPENROUTER_API_KEY}|" LightRAG_Prototype/.env
-                    '''
-                }
+                sh 'cp LightRAG_Prototype/.env.poc LightRAG_Prototype/.env'
             }
         }
 
