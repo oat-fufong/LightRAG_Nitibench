@@ -83,6 +83,7 @@ pipeline {
 
     environment {
         OPENROUTER_API_KEY = credentials('OPENROUTER_API_KEY')
+        OPENAI_API_KEY     = credentials('OPENROUTER_API_KEY')
 
         HTTP_PROXY  = 'http://10.0.0.3:3128'
         HTTPS_PROXY = 'http://10.0.0.3:3128'
