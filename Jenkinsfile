@@ -122,6 +122,12 @@ pipeline {
             }
         }
 
+        stage('Verify Config') {
+            steps {
+                sh 'docker compose config'
+            }
+        }
+
         stage('Cleanup') {
             steps {
                 sh 'docker compose down --remove-orphans || true'
