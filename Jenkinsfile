@@ -82,6 +82,8 @@ pipeline {
     }
 
     environment {
+        OPENROUTER_API_KEY = credentials('OPENROUTER_API_KEY')
+
         HTTP_PROXY  = 'http://10.0.0.3:3128'
         HTTPS_PROXY = 'http://10.0.0.3:3128'
         NO_PROXY    = 'localhost,127.0.0.1,metadata.google.internal,lightrag'
@@ -174,38 +176,30 @@ datasets: ["tax"]
 
         stage('Generate Responses') {
             steps {
-                withCredentials([
-                    string(credentialsId: 'OPENROUTER_API_KEY', variable: 'OPENROUTER_API_KEY')
-                ]) {
-                    sh '''
-                        docker compose run --rm \
-                            -e OPENROUTER_API_KEY="${OPENROUTER_API_KEY}" \
-                            evaluator \
-                            python /app/lightrag_response.py \
-                                --dataset /app/test_data/hf_tax.csv \
-                                --output /app/results/tax_response.json \
-                                --url http://lightrag:9621 \
-                                --mode ${LIGHTRAG_MODE} \
-                                --concurrency ${LIGHTRAG_CONCURRENCY} \
-                                --limit ${QUESTION_LIMIT}
-                    '''
-                }
+                sh '''
+                    docker compose run --rm \
+                        -e OPENROUTER_API_KEY="${OPENROUTER_API_KEY}" \
+                        evaluator \
+                        python /app/lightrag_response.py \
+                            --dataset /app/test_data/hf_tax.csv \
+                            --output /app/results/tax_response.json \
+                            --url http://lightrag:9621 \
+                            --mode ${LIGHTRAG_MODE} \
+                            --concurrency ${LIGHTRAG_CONCURRENCY} \
+                            --limit ${QUESTION_LIMIT}
+                '''
             }
         }
 
         stage('Evaluate') {
             steps {
-                withCredentials([
-                    string(credentialsId: 'OPENROUTER_API_KEY', variable: 'OPENROUTER_API_KEY')
-                ]) {
-                    sh '''
-                        docker compose run --rm \
-                            -e OPENROUTER_API_KEY="${OPENROUTER_API_KEY}" \
-                            evaluator \
-                            python /app/LRG/script/metric_e2e.py \
-                                --config_path /app/LRG/config/all_e2e_metric_config/lightrag_tax_metric.yaml
-                    '''
-                }
+                sh '''
+                    docker compose run --rm \
+                        -e OPENROUTER_API_KEY="${OPENROUTER_API_KEY}" \
+                        evaluator \
+                        python /app/LRG/script/metric_e2e.py \
+                            --config_path /app/LRG/config/all_e2e_metric_config/lightrag_tax_metric.yaml
+                '''
             }
         }
     }
