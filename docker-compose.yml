@@ -9,7 +9,7 @@ services:
     ports:
       - "9621:9621"
     volumes:
-      - ${FILESTORE_PATH:-./LightRAG_Prototype/data/rag_storage}:/app/data/rag_storage:ro   # pre-processed knowledge graph
+      - ${FILESTORE_PATH:-./LightRAG_Prototype/data/rag_storage}:/app/data/rag_storage
       - ./LightRAG_Prototype/.env:/app/.env:ro
     env_file:
       - ./LightRAG_Prototype/.env
