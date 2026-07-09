@@ -197,6 +197,7 @@ datasets: ["tax"]
                 sh '''
                     docker compose run --rm \
                         -e OPENROUTER_API_KEY="${OPENROUTER_API_KEY}" \
+                        -e OPENAI_API_KEY="${OPENAI_API_KEY}" \
                         evaluator \
                         python /app/LRG/script/metric_e2e.py \
                             --config_path /app/LRG/config/all_e2e_metric_config/lightrag_tax_metric.yaml
