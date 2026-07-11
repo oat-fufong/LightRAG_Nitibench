@@ -158,6 +158,11 @@ pipeline {
                     if (params.RUN_WANGCHAN) datasetsList << '"wangchan"'
                     if (datasetsList.isEmpty()) error('At least one dataset must be selected')
 
+                    def limit = params.QUESTION_LIMIT as int
+                    def wcxDataPath = (params.RUN_WANGCHAN && limit > 0)
+                        ? 'wcx_data_path: /app/results/hf_wcx_sliced.csv'
+                        : ''
+
                     sh 'mkdir -p nitibench/config/all_e2e_metric_config'
                     writeFile(
                         file: 'nitibench/config/all_e2e_metric_config/lightrag_tax_metric.yaml',
@@ -177,6 +182,7 @@ llm_config:
 eval_retrieval: False
 batch_size: ${params.BATCH_SIZE}
 datasets: [${datasetsList.join(', ')}]
+${wcxDataPath}
 """
                     )
                 }
@@ -202,23 +208,42 @@ datasets: [${datasetsList.join(', ')}]
         stage('Generate Responses') {
             steps {
                 script {
-                    def runDataset = { String csv, String out ->
+                    def limit = params.QUESTION_LIMIT as int
+
+                    if (params.RUN_TAX) {
                         sh """
                             docker compose run --rm \\
                                 -e OPENROUTER_API_KEY="${OPENROUTER_API_KEY}" \\
                                 -e OPENAI_API_KEY="${OPENAI_API_KEY}" \\
                                 evaluator \\
                                 python /app/lightrag_response.py \\
-                                    --dataset /app/test_data/${csv} \\
-                                    --output /app/results/${out} \\
+                                    --dataset /app/test_data/hf_tax.csv \\
+                                    --output /app/results/tax_response.json \\
                                     --url http://lightrag:9621 \\
                                     --mode ${LIGHTRAG_MODE} \\
                                     --concurrency ${LIGHTRAG_CONCURRENCY} \\
                                     --limit ${QUESTION_LIMIT}
                         """
                     }
-                    if (params.RUN_TAX)      runDataset('hf_tax.csv',  'tax_response.json')
-                    if (params.RUN_WANGCHAN) runDataset('hf_wcx.csv',  'wangchan_response.json')
+
+                    if (params.RUN_WANGCHAN) {
+                        // When limited, write a sliced CSV so metric_e2e only judges the queried rows
+                        def slicedArg = limit > 0 ? '--sliced-dataset /app/results/hf_wcx_sliced.csv' : ''
+                        sh """
+                            docker compose run --rm \\
+                                -e OPENROUTER_API_KEY="${OPENROUTER_API_KEY}" \\
+                                -e OPENAI_API_KEY="${OPENAI_API_KEY}" \\
+                                evaluator \\
+                                python /app/lightrag_response.py \\
+                                    --dataset /app/test_data/hf_wcx.csv \\
+                                    --output /app/results/wangchan_response.json \\
+                                    --url http://lightrag:9621 \\
+                                    --mode ${LIGHTRAG_MODE} \\
+                                    --concurrency ${LIGHTRAG_CONCURRENCY} \\
+                                    --limit ${QUESTION_LIMIT} \\
+                                    ${slicedArg}
+                        """
+                    }
                 }
             }
         }
