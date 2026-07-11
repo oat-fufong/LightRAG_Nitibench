@@ -63,6 +63,13 @@ pipeline {
             description: 'Cap number of questions to run (0 = all; use 5-10 for quick smoke tests)'
         )
 
+        // --- Evaluation corpus ---
+        choice(
+            name: 'NODE_CORPUS',
+            choices: ['golden', 'reduced_golden'],
+            description: 'Which nodes.json to use as citation reference standard (golden = full 5127 sections, reduced_golden = 3471 sections)'
+        )
+
         // --- Datasets ---
         booleanParam(
             name: 'RUN_TAX',
@@ -155,8 +162,8 @@ pipeline {
                     writeFile(
                         file: 'nitibench/config/all_e2e_metric_config/lightrag_tax_metric.yaml',
                         text: """\
-chunk_node_path: /app/LRG/chunking/reduced_golden/nodes.json
-golden_node_path: /app/LRG/chunking/reduced_golden/nodes.json
+chunk_node_path: /app/LRG/chunking/${params.NODE_CORPUS}/nodes.json
+golden_node_path: /app/LRG/chunking/${params.NODE_CORPUS}/nodes.json
 
 result_dir: /app/results
 
