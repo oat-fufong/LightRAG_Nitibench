@@ -63,6 +63,18 @@ pipeline {
             description: 'Cap number of questions to run (0 = all; use 5-10 for quick smoke tests)'
         )
 
+        // --- Datasets ---
+        booleanParam(
+            name: 'RUN_TAX',
+            defaultValue: true,
+            description: 'Evaluate tax dataset — hf_tax.csv (50 questions, Revenue Code)'
+        )
+        booleanParam(
+            name: 'RUN_WANGCHAN',
+            defaultValue: true,
+            description: 'Evaluate wangchan/CCL dataset — hf_wcx.csv (3730 questions, general civil law)'
+        )
+
         // --- Evaluation judge ---
         string(
             name: 'JUDGE_MODEL',
@@ -134,6 +146,11 @@ pipeline {
         stage('Generate Metric Config') {
             steps {
                 script {
+                    def datasetsList = []
+                    if (params.RUN_TAX)      datasetsList << '"tax"'
+                    if (params.RUN_WANGCHAN) datasetsList << '"wangchan"'
+                    if (datasetsList.isEmpty()) error('At least one dataset must be selected')
+
                     sh 'mkdir -p nitibench/config/all_e2e_metric_config'
                     writeFile(
                         file: 'nitibench/config/all_e2e_metric_config/lightrag_tax_metric.yaml',
@@ -152,7 +169,7 @@ llm_config:
 
 eval_retrieval: False
 batch_size: ${params.BATCH_SIZE}
-datasets: ["tax"]
+datasets: [${datasetsList.join(', ')}]
 """
                     )
                 }
@@ -177,31 +194,38 @@ datasets: ["tax"]
 
         stage('Generate Responses') {
             steps {
-                sh '''
-                    docker compose run --rm \
-                        -e OPENROUTER_API_KEY="${OPENROUTER_API_KEY}" \
-                        evaluator \
-                        python /app/lightrag_response.py \
-                            --dataset /app/test_data/hf_tax.csv \
-                            --output /app/results/tax_response.json \
-                            --url http://lightrag:9621 \
-                            --mode ${LIGHTRAG_MODE} \
-                            --concurrency ${LIGHTRAG_CONCURRENCY} \
-                            --limit ${QUESTION_LIMIT}
-                '''
+                script {
+                    def runDataset = { String csv, String out ->
+                        sh """
+                            docker compose run --rm \\
+                                -e OPENROUTER_API_KEY="${OPENROUTER_API_KEY}" \\
+                                -e OPENAI_API_KEY="${OPENAI_API_KEY}" \\
+                                evaluator \\
+                                python /app/lightrag_response.py \\
+                                    --dataset /app/test_data/${csv} \\
+                                    --output /app/results/${out} \\
+                                    --url http://lightrag:9621 \\
+                                    --mode ${LIGHTRAG_MODE} \\
+                                    --concurrency ${LIGHTRAG_CONCURRENCY} \\
+                                    --limit ${QUESTION_LIMIT}
+                        """
+                    }
+                    if (params.RUN_TAX)      runDataset('hf_tax.csv',  'tax_response.json')
+                    if (params.RUN_WANGCHAN) runDataset('hf_wcx.csv',  'wangchan_response.json')
+                }
             }
         }
 
         stage('Evaluate') {
             steps {
-                sh '''
-                    docker compose run --rm \
-                        -e OPENROUTER_API_KEY="${OPENROUTER_API_KEY}" \
-                        -e OPENAI_API_KEY="${OPENAI_API_KEY}" \
-                        evaluator \
-                        python /app/LRG/script/metric_e2e.py \
+                sh """
+                    docker compose run --rm \\
+                        -e OPENROUTER_API_KEY="${OPENROUTER_API_KEY}" \\
+                        -e OPENAI_API_KEY="${OPENAI_API_KEY}" \\
+                        evaluator \\
+                        python /app/LRG/script/metric_e2e.py \\
                             --config_path /app/LRG/config/all_e2e_metric_config/lightrag_tax_metric.yaml
-                '''
+                """
             }
         }
     }
