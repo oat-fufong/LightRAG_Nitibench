@@ -48,6 +48,9 @@ async def main(args):
         df_query = df.head(args.limit)
         df_skip = df.iloc[args.limit:]
         print(f"Limiting queries to first {args.limit} / {len(df)} questions")
+        if args.sliced_dataset:
+            df_query.to_csv(args.sliced_dataset, encoding="utf-8-sig", index=False)
+            print(f"Sliced dataset written to {args.sliced_dataset}")
     else:
         df_query = df
         df_skip = df.iloc[0:0]
@@ -91,12 +94,14 @@ async def main(args):
         tasks = [run_one(row["idx"], row[q_col]) for _, row in df_query.iterrows()]
         results = await atqdm.gather(*tasks, desc="Querying LightRAG")
 
-    # Pad skipped rows with empty answers so metric_e2e gets a full-length file
-    skipped = [
-        {"idx": row["idx"], "content": {"answer": "", "citations": []}, "retrieved_ids": [], "usage": {"skipped": True}, "tries": 0}
-        for _, row in df_skip.iterrows()
-    ]
-    results = list(results) + skipped
+    # Pad skipped rows with empty answers unless a sliced dataset was written
+    # (when sliced_dataset is used, metric_e2e loads that smaller CSV so padding is not needed)
+    if not args.sliced_dataset:
+        skipped = [
+            {"idx": row["idx"], "content": {"answer": "", "citations": []}, "retrieved_ids": [], "usage": {"skipped": True}, "tries": 0}
+            for _, row in df_skip.iterrows()
+        ]
+        results = list(results) + skipped
 
     results.sort(key=lambda x: x["idx"])
 
@@ -125,5 +130,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--concurrency", type=int, default=3)
     parser.add_argument("--limit", type=int, default=0, help="cap number of questions (0 = all)")
+    parser.add_argument("--sliced-dataset", default="", dest="sliced_dataset",
+                        help="when --limit is set, write the sliced input CSV here and skip padding in the response JSON")
     args = parser.parse_args()
     asyncio.run(main(args))
