@@ -48,6 +48,7 @@ services:
       - ${RESULT_PATH:-./results}:/app/results
       - ./lightrag_response.py:/app/lightrag_response.py
       - ./nitibench/config:/app/LRG/config
+      - ./patches/openai_model.py:/app/LRG/lrg/llm/collections/openai/model.py:ro
     environment:
       - LIGHTRAG_URL=http://lightrag:9621
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
