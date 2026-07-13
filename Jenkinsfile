@@ -90,8 +90,13 @@ pipeline {
         )
         string(
             name: 'JUDGE_MAX_TOKENS',
-            defaultValue: '2048',
-            description: 'Max tokens for judge model response'
+            defaultValue: '4096',
+            description: 'Max tokens for judge model response (wangchan needs 4096+; tax is fine at 2048)'
+        )
+        booleanParam(
+            name: 'SKIP_GENERATE',
+            defaultValue: false,
+            description: 'Skip LightRAG startup and response generation — go straight to Evaluate using existing response files in RESULT_PATH'
         )
         string(
             name: 'BATCH_SIZE',
@@ -190,12 +195,14 @@ ${wcxDataPath}
         }
 
         stage('Build Images') {
+            when { expression { !params.SKIP_GENERATE } }
             steps {
                 sh 'docker compose build'
             }
         }
 
         stage('Start LightRAG') {
+            when { expression { !params.SKIP_GENERATE } }
             steps {
                 sh '''
                     docker compose up -d --wait --wait-timeout 180 lightrag
@@ -206,6 +213,7 @@ ${wcxDataPath}
         }
 
         stage('Generate Responses') {
+            when { expression { !params.SKIP_GENERATE } }
             steps {
                 script {
                     def limit = params.QUESTION_LIMIT as int
@@ -250,6 +258,11 @@ ${wcxDataPath}
 
         stage('Evaluate') {
             steps {
+                script {
+                    if (params.SKIP_GENERATE) {
+                        sh 'docker compose build evaluator'
+                    }
+                }
                 sh """
                     docker compose run --rm \\
                         -e OPENROUTER_API_KEY="${OPENROUTER_API_KEY}" \\
