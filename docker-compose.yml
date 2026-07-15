@@ -40,6 +40,12 @@ services:
   evaluator:
     build:
       context: ./nitibench
+      args:
+        HTTP_PROXY: "http://10.0.0.3:3128"
+        HTTPS_PROXY: "http://10.0.0.3:3128"
+        NO_PROXY: "localhost,127.0.0.1,metadata.google.internal"
+        HF_HUB_DISABLE_XET: "1"
+        HF_TOKEN: ${HF_TOKEN:-}
     container_name: evaluator
     depends_on:
       lightrag:
